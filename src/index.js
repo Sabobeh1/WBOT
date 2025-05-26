@@ -20,10 +20,13 @@ const moment = require('moment')
 // take parameter from json 
 // only after authentication success from whatsapp
 const graphicalInterface = require('./server/server')
+// Import conversation manager for tree-based conversations
+const ConversationManager = require('./conversationManager');
 //TODO: remove this
 // const {write,read}=require('../media/tem')
 
-
+// Initialize conversation manager
+let conversationManager = null;
 
 let appconfig = null;
 
@@ -118,6 +121,20 @@ async function Main() {
         client.on('ready', async () => {
             spinner.info('WBOT is spinning up!');
             await utils.delay(5000)
+            
+            // Initialize conversation manager
+            conversationManager = new ConversationManager();
+            console.log('Conversation Manager initialized with tree-based navigation!');
+            
+            // Set up session cleanup interval (every 30 minutes)
+            setInterval(() => {
+                if (conversationManager) {
+                    conversationManager.cleanupOldSessions();
+                    const stats = conversationManager.getSessionStats();
+                    console.log(`Session cleanup: ${stats.activeSessions} active sessions`);
+                }
+            }, 30 * 60 * 1000);
+            
             let server = appconfig.appconfig.server
             if (server) {
 
@@ -437,7 +454,7 @@ async function smartReply({ msg, client }) {
 
     // console.log(msg.body)
     const data = msg?.body;
-    const list = appconfig.bot;
+    const userId = msg.from;
 
     //Don't reply is sender is blocked
     const senderNumber = msg.from.split("@")[0]
@@ -463,8 +480,29 @@ async function smartReply({ msg, client }) {
         return;
     }
 
-    // webhook Call
+    // Use conversation manager for tree-based responses
+    if (conversationManager) {
+        try {
+            const response = conversationManager.getResponse(userId, data);
+            
+            if (response && response.message) {
+                console.log(`Tree Response: User in state '${response.state}' - ${response.isError ? 'Error' : 'Success'}`);
+                
+                // Send the tree-based response
+                if (!appconfig.appconfig.quoteMessageInReply) {
+                    await client.sendMessage(msg.from, response.message);
+                } else {
+                    await msg.reply(response.message);
+                }
+                return;
+            }
+        } catch (error) {
+            console.error('Error in conversation manager:', error);
+        }
+    }
 
+    // Fallback to original bot logic if conversation manager fails
+    const list = appconfig.bot;
     var exactMatch = list.find((obj) =>
         obj.exact.find((ex) => ex == data.toLowerCase())
     );
