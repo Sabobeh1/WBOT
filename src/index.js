@@ -16,6 +16,9 @@ const fetch = require("node-fetch");
 const { lt } = require('semver');
 const mime = require('mime');
 const moment = require('moment')
+// Firebase Admin SDK
+const admin = require('firebase-admin');
+
 // only when server object is there in bot.json
 // take parameter from json 
 // only after authentication success from whatsapp
@@ -24,6 +27,40 @@ const graphicalInterface = require('./server/server')
 const ConversationManager = require('./conversationManager');
 //TODO: remove this
 // const {write,read}=require('../media/tem')
+
+// Initialize Firebase Admin SDK
+let db = null;
+try {
+    // Initialize Firebase Admin with the same project ID as client-side
+    admin.initializeApp({
+        projectId: "aip-dubai"
+    });
+    db = admin.firestore();
+    console.log('Firebase Admin SDK initialized successfully');
+} catch (error) {
+    console.error('Error initializing Firebase Admin SDK:', error);
+}
+
+// Function to save message to Firebase
+async function saveMessageToFirebase(messageData) {
+    if (!db) {
+        console.error('Firebase not initialized, skipping message save');
+        return;
+    }
+    
+    try {
+        const docRef = await db.collection('aip').doc('sMgNc2323Tcc8Qe6cvBx').collection('messages').add({
+            number: messageData.number,
+            message: messageData.message,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            chatName: messageData.chatName,
+            rawTimestamp: messageData.rawTimestamp
+        });
+        console.log('Message saved to Firebase with ID:', docRef.id);
+    } catch (error) {
+        console.error('Error saving message to Firebase:', error);
+    }
+}
 
 // Initialize conversation manager
 let conversationManager = null;
@@ -171,6 +208,20 @@ async function Main() {
             msg._data['chatName'] = chat.name
             messages.push(msg)
             fs.writeFileSync(path.resolve('messages.json'), JSON.stringify(messages, null, 2))
+            
+            // Save message to Firebase
+            try {
+                const senderNumber = msg.from.split("@")[0]; // Extract phone number
+                await saveMessageToFirebase({
+                    number: senderNumber,
+                    message: msg.body,
+                    chatName: chat.name,
+                    rawTimestamp: msg.timestamp
+                });
+            } catch (error) {
+                console.error('Error saving to Firebase:', error);
+            }
+            
             // if it is a media message then download the media and save it in the media folder
             if (msg.hasMedia && configs.appconfig.downloadMedia) {
                 console.log("Message has media. downloading");

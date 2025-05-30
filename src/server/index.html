@@ -10,7 +10,39 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <!-- SheetJS (xlsx) library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
     <title>WBot Flow</title>
+    <style>
+        /* Basic styling for messages list */
+        #messagesContainer {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .message-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .message-item:last-child {
+            border-bottom: none;
+        }
+        .message-number {
+            font-weight: bold;
+            color: #337ab7;
+        }
+        .message-text {
+            margin-left: 10px;
+        }
+        #downloadMessagesBtn {
+            margin-left: 10px; /* Add some space next to the Messages link */
+        }
+    </style>
 </head>
 
 <body>
@@ -24,6 +56,7 @@
             </li>
             <li>
                 <a href="/messages">Messages</a>
+                <button id="downloadMessagesBtn" class="btn btn-info btn-sm">Download Messages as Excel</button>
             </li>
         </ul>
     </div>
@@ -34,6 +67,15 @@
         </div>
         <table id="table"></table>
     </div>
+
+    <!-- Container for displaying messages -->
+    <div class="container" id="messagesDisplayContainer">
+        <h3>Client Messages</h3>
+        <div id="messagesList">
+            <p>Loading messages...</p>
+        </div>
+    </div>
+
     <form enctype="multipart/form-data" onsubmit="return validate()" action="/newNode" method="post">
         <div id="myModal" class="modal fade" role="dialog" style="top:25%">
             <div class="modal-dialog">
@@ -86,6 +128,24 @@
     crossorigin="anonymous" referrerpolicy="no-referrer">
     </script>
 <script>
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyC-vsSFCx9kRqAsqnjO1NfIHJ2gTeyVkXs",
+        authDomain: "aip-dubai.firebaseapp.com",
+        projectId: "aip-dubai",
+        storageBucket: "aip-dubai.firebasestorage.app",
+        messagingSenderId: "706834784614",
+        appId: "1:706834784614:web:b503cebfc1b3ba2902a8a7",
+        measurementId: "G-24VGN9XR94"
+    };
+
+    // Initialize Firebase
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.firestore();
+    const messagesCollection = db.collection('aip').doc('sMgNc2323Tcc8Qe6cvBx').collection('messages');
+
     const table = document.getElementById('table');
     let count = 0;
     let nodesData = [];
@@ -114,10 +174,10 @@
         .catch(error => console.error('Error fetching bot data:', error));
     window.addEventListener('resize', function (event) {
         leaderLines.map(leaderLine => leaderLine.remove())
-        let count = 0;
+        let currentCount = 0; // Use a different variable name to avoid conflict
         nodesData.map(node => {
-            createLines(count.toString());
-            count++;
+            createLines(currentCount.toString());
+            currentCount++;
         })
     });
     function validate()
@@ -143,6 +203,72 @@
                 );
         leaderLines.push(leaderLine)
     }
+
+    // Firestore real-time listener for messages
+    const messagesListDiv = document.getElementById('messagesList');
+    messagesCollection.orderBy("timestamp", "desc").onSnapshot(snapshot => {
+        if (snapshot.empty) {
+            messagesListDiv.innerHTML = '<p>No messages yet.</p>';
+            return;
+        }
+        let messagesHTML = '';
+        snapshot.forEach(doc => {
+            const messageData = doc.data();
+            messagesHTML += `
+                <div class="message-item">
+                    <span class="message-number">${messageData.number}:</span>
+                    <span class="message-text">${messageData.message}</span>
+                </div>
+            `;
+        });
+        messagesListDiv.innerHTML = messagesHTML;
+    }, error => {
+        console.error("Error fetching messages: ", error);
+        messagesListDiv.innerHTML = '<p>Error loading messages. Check console for details.</p>';
+        alert('Error loading messages: ' + error.message);
+    });
+
+    // Download messages as Excel
+    const downloadBtn = document.getElementById('downloadMessagesBtn');
+    downloadBtn.addEventListener('click', async () => {
+        try {
+            downloadBtn.disabled = true;
+            downloadBtn.textContent = 'Generating...';
+
+            const querySnapshot = await messagesCollection.get();
+            if (querySnapshot.empty) {
+                alert('No messages to download.');
+                return;
+            }
+
+            const messagesData = [];
+            querySnapshot.forEach(doc => {
+                const data = doc.data();
+                messagesData.push({
+                    Number: data.number,
+                    Message: data.message
+                });
+            });
+
+            // Create worksheet
+            const worksheet = XLSX.utils.json_to_sheet(messagesData);
+            // Create workbook
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Messages");
+
+            // Generate Excel file and trigger download
+            XLSX.writeFile(workbook, "messages.xlsx");
+            alert('Messages downloaded successfully as messages.xlsx!');
+
+        } catch (error) {
+            console.error("Error generating Excel file: ", error);
+            alert('Error generating Excel file: ' + error.message);
+        } finally {
+            downloadBtn.disabled = false;
+            downloadBtn.textContent = 'Download Messages as Excel';
+        }
+    });
+
 </script>
 
 </html>
