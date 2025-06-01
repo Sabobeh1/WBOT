@@ -16,9 +16,6 @@ const fetch = require("node-fetch");
 const { lt } = require('semver');
 const mime = require('mime');
 const moment = require('moment')
-// Firebase Admin SDK
-const admin = require('firebase-admin');
-
 // only when server object is there in bot.json
 // take parameter from json 
 // only after authentication success from whatsapp
@@ -28,46 +25,98 @@ const ConversationManager = require('./conversationManager');
 //TODO: remove this
 // const {write,read}=require('../media/tem')
 
-// Initialize Firebase Admin SDK
-let db = null;
-try {
-    // Initialize Firebase Admin with the same project ID as client-side
-    admin.initializeApp({
-        projectId: "aip-dubai"
-    });
-    db = admin.firestore();
-    console.log('Firebase Admin SDK initialized successfully');
-} catch (error) {
-    console.error('Error initializing Firebase Admin SDK:', error);
-}
-
-// Function to save message to Firebase
-async function saveMessageToFirebase(messageData) {
-    if (!db) {
-        console.error('Firebase not initialized, skipping message save');
-        return;
-    }
-    
-    try {
-        const docRef = await db.collection('aip').doc('sMgNc2323Tcc8Qe6cvBx').collection('messages').add({
-            number: messageData.number,
-            message: messageData.message,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            chatName: messageData.chatName,
-            rawTimestamp: messageData.rawTimestamp
-        });
-        console.log('Message saved to Firebase with ID:', docRef.id);
-    } catch (error) {
-        console.error('Error saving message to Firebase:', error);
-    }
-}
-
 // Initialize conversation manager
 let conversationManager = null;
 
 let appconfig = null;
 
 //console.log(process.cwd());
+
+// ADD THIS NEW FUNCTION TO LOG BOT MESSAGES
+function logBotMessage(to, message, chatInfo = {}) {
+    try {
+        const messagesPath = path.resolve('messages.json');
+        let messages = [];
+        
+        // Read existing messages
+        if (fs.existsSync(messagesPath)) {
+            const fileContent = fs.readFileSync(messagesPath, 'utf8');
+            messages = JSON.parse(fileContent);
+        }
+        
+        // Create a bot message object similar to user messages
+        const botMessage = {
+            _data: {
+                id: {
+                    fromMe: true,
+                    remote: to,
+                    id: "BOT_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9),
+                    _serialized: `true_${to}_BOT_${Date.now()}`
+                },
+                viewed: false,
+                body: message,
+                type: "chat",
+                t: Math.floor(Date.now() / 1000),
+                notifyName: "WBOT",
+                from: "972599059600@c.us", // Your bot's number
+                to: to,
+                ack: 1,
+                invis: false,
+                isNewMsg: true,
+                star: false,
+                kicNotified: false,
+                recvFresh: true,
+                isFromTemplate: false,
+                pollInvalidated: false,
+                isSentCagPollCreation: false,
+                latestEditMsgKey: null,
+                latestEditSenderTimestampMs: null,
+                mentionedJidList: [],
+                groupMentions: [],
+                isEventCanceled: false,
+                eventInvalidated: false,
+                isVcardOverMmsDocument: false,
+                isForwarded: false,
+                labels: [],
+                hasReaction: false,
+                links: [],
+                chatName: chatInfo.chatName || "WBOT Response"
+            },
+            id: {
+                fromMe: true,
+                remote: to,
+                id: "BOT_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9),
+                _serialized: `true_${to}_BOT_${Date.now()}`
+            },
+            ack: 1,
+            hasMedia: false,
+            body: message,
+            type: "chat",
+            timestamp: moment().format('DD/MM/YYYY HH:mm'),
+            from: "972599059600@c.us", // Your bot's number
+            to: to,
+            deviceType: "bot",
+            isForwarded: false,
+            forwardingScore: 0,
+            isStatus: false,
+            isStarred: false,
+            fromMe: true, // This is the key difference - marks it as bot message
+            hasQuotedMsg: false,
+            hasReaction: false,
+            vCards: [],
+            mentionedIds: [],
+            groupMentions: [],
+            isGif: false,
+            links: []
+        };
+        
+        messages.push(botMessage);
+        fs.writeFileSync(messagesPath, JSON.stringify(messages, null, 2));
+        console.log(`Bot message logged: "${message.substring(0, 50)}..." to ${to}`);
+    } catch (error) {
+        console.error('Error logging bot message:', error);
+    }
+}
 
 async function Main() {
 
@@ -208,20 +257,6 @@ async function Main() {
             msg._data['chatName'] = chat.name
             messages.push(msg)
             fs.writeFileSync(path.resolve('messages.json'), JSON.stringify(messages, null, 2))
-            
-            // Save message to Firebase
-            try {
-                const senderNumber = msg.from.split("@")[0]; // Extract phone number
-                await saveMessageToFirebase({
-                    number: senderNumber,
-                    message: msg.body,
-                    chatName: chat.name,
-                    rawTimestamp: msg.timestamp
-                });
-            } catch (error) {
-                console.error('Error saving to Firebase:', error);
-            }
-            
             // if it is a media message then download the media and save it in the media folder
             if (msg.hasMedia && configs.appconfig.downloadMedia) {
                 console.log("Message has media. downloading");
@@ -304,8 +339,6 @@ async function getResponse(msg, message) {
     return response;
 }
 
-
-
 async function sendReply({ msg, client, data, noMatch }) {
     let globalWebhook = appconfig.appconfig.webhook;
 
@@ -315,9 +348,13 @@ async function sendReply({ msg, client, data, noMatch }) {
             console.log(`No match found Replying with ${response}`);
             if (!configs.appconfig.quoteMessageInReply) {
                 await client.sendMessage(msg.from, response);
+                // LOG THE BOT MESSAGE
+                logBotMessage(msg.from, response, { chatName: msg._data?.chatName });
             }
             else {
                 await msg.reply(response);
+                // LOG THE BOT MESSAGE
+                logBotMessage(msg.from, response, { chatName: msg._data?.chatName });
             }
             await processWebhook({ msg, client, webhook: globalWebhook });
 
@@ -327,16 +364,12 @@ async function sendReply({ msg, client, data, noMatch }) {
         return;
     }
 
-
-
     let response = await getResponse(msg, data.response);
     console.log(`Replying with ${response}`);
-
 
     if (data.afterSeconds) {
         await utils.delay(data.afterSeconds * 1000);
     }
-
 
     if (data.file) {
 
@@ -360,9 +393,13 @@ async function sendReply({ msg, client, data, noMatch }) {
         if (!captionStatus) {
             if (!configs.appconfig.quoteMessageInReply) {
                 await client.sendMessage(msg.from, response);
+                // LOG THE BOT MESSAGE
+                logBotMessage(msg.from, response, { chatName: msg._data?.chatName });
             }
             else {
                 await msg.reply(response);
+                // LOG THE BOT MESSAGE
+                logBotMessage(msg.from, response, { chatName: msg._data?.chatName });
             }
         }
         // if responseAsCaption is true, send image with response as a caption
@@ -370,9 +407,13 @@ async function sendReply({ msg, client, data, noMatch }) {
     } else {
         if (!configs.appconfig.quoteMessageInReply) {
             await client.sendMessage(msg.from, response);
+            // LOG THE BOT MESSAGE
+            logBotMessage(msg.from, response, { chatName: msg._data?.chatName });
         }
         else {
             await msg.reply(response);
+            // LOG THE BOT MESSAGE
+            logBotMessage(msg.from, response, { chatName: msg._data?.chatName });
         }
     }
     if (data.hasOwnProperty('webhook') && data.webhook.length > 0) {
@@ -397,6 +438,8 @@ async function sendReply({ msg, client, data, noMatch }) {
                     );
                     if (!configs.appconfig.quoteMessageInReply) {
                         await client.sendMessage(msg.from, media, { caption: response });
+                        // LOG THE MEDIA MESSAGE WITH CAPTION
+                        logBotMessage(msg.from, `[Media: ${file}] ${response}`, { chatName: msg._data?.chatName });
                     }
                     else {
                         // #TODO Caption is not working
@@ -405,6 +448,8 @@ async function sendReply({ msg, client, data, noMatch }) {
                         // console.log({ caption: response })
                         // console.log(media)
                         await msg.reply(media, data.id._serialized, { caption: response });
+                        // LOG THE MEDIA MESSAGE WITH CAPTION
+                        logBotMessage(msg.from, `[Media: ${file}] ${response}`, { chatName: msg._data?.chatName });
                         // await msg.reply(media,);
                     }
                 })
@@ -428,9 +473,13 @@ async function sendReply({ msg, client, data, noMatch }) {
                     );
                     if (!configs.appconfig.quoteMessageInReply) {
                         await client.sendMessage(msg.from, media);
+                        // LOG THE MEDIA MESSAGE
+                        logBotMessage(msg.from, `[Media: ${file}]`, { chatName: msg._data?.chatName });
                     }
                     else {
                         await msg.reply(media);
+                        // LOG THE MEDIA MESSAGE
+                        logBotMessage(msg.from, `[Media: ${file}]`, { chatName: msg._data?.chatName });
                     }
                 })
                 .catch((error) => {
@@ -468,9 +517,13 @@ async function processWebhook({ msg, client, webhook }) {
 
             if (!configs.appconfig.quoteMessageInReply) {
                 await client.sendMessage(msg.from, itemResponse.text);
+                // LOG THE WEBHOOK RESPONSE
+                logBotMessage(msg.from, itemResponse.text, { chatName: msg._data?.chatName });
             }
             else {
                 await msg.reply(itemResponse.text);
+                // LOG THE WEBHOOK RESPONSE
+                logBotMessage(msg.from, itemResponse.text, { chatName: msg._data?.chatName });
             }
 
             //sending files if there is any 
@@ -491,9 +544,13 @@ async function processWebhook({ msg, client, webhook }) {
 
                     if (!configs.appconfig.quoteMessageInReply) {
                         await client.sendMessage(msg.from, media);
+                        // LOG THE WEBHOOK FILE
+                        logBotMessage(msg.from, `[Webhook Media: ${itemFile.name}]`, { chatName: msg._data?.chatName });
                     }
                     else {
                         await msg.reply(media);
+                        // LOG THE WEBHOOK FILE
+                        logBotMessage(msg.from, `[Webhook Media: ${itemFile.name}]`, { chatName: msg._data?.chatName });
                     }
                 })
             }
@@ -542,8 +599,12 @@ async function smartReply({ msg, client }) {
                 // Send the tree-based response
                 if (!appconfig.appconfig.quoteMessageInReply) {
                     await client.sendMessage(msg.from, response.message);
+                    // LOG THE CONVERSATION MANAGER RESPONSE
+                    logBotMessage(msg.from, response.message, { chatName: msg._data?.chatName });
                 } else {
                     await msg.reply(response.message);
+                    // LOG THE CONVERSATION MANAGER RESPONSE
+                    logBotMessage(msg.from, response.message, { chatName: msg._data?.chatName });
                 }
                 return;
             }
@@ -588,6 +649,52 @@ async function checkForUpdate() {
     if (lt(myVersion, latestVersion)) {
         console.log(`An Update is available for you.\nPlease download the latest version ${latestVersion} of WBOT from ${latestVersionLink}`);
     }
+}
+
+// Simple test function to verify the structure
+function downloadMessagesAsExcel() {
+    console.log('Testing Excel download...');
+    
+    if (typeof XLSX === 'undefined') {
+        alert('XLSX library not loaded!');
+        return;
+    }
+
+    // Create test data
+    const testData = [
+        {
+            'Sender Name': 'Test User',
+            'Date & Time': '01/06/2025 12:00',
+            'Request': 'Hello! How can I help you?',
+            'Message Content': 'I need help with my order',
+            'Sender Phone': '1234567890',
+            'Message ID': 'test123',
+            'Device Type': 'ios'
+        },
+        {
+            'Sender Name': 'Another User', 
+            'Date & Time': '01/06/2025 12:05',
+            'Request': 'What would you like to know?',
+            'Message Content': 'What are your business hours?',
+            'Sender Phone': '0987654321',
+            'Message ID': 'test456',
+            'Device Type': 'android'
+        }
+    ];
+
+    // Create Excel
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(testData);
+    
+    ws['!cols'] = [
+        { wch: 20 }, { wch: 18 }, { wch: 35 }, { wch: 35 },
+        { wch: 15 }, { wch: 25 }, { wch: 12 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Test_Messages');
+    XLSX.writeFile(wb, 'Test_WhatsApp_Messages.xlsx');
+    
+    alert('Test Excel file downloaded! Check if it has the Request column.');
 }
 
 Main();
