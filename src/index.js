@@ -38,10 +38,15 @@ function logBotMessage(to, message, chatInfo = {}) {
         const messagesPath = path.resolve('messages.json');
         let messages = [];
         
-        // Read existing messages
+        // Read existing messages without caching
         if (fs.existsSync(messagesPath)) {
-            const fileContent = fs.readFileSync(messagesPath, 'utf8');
-            messages = JSON.parse(fileContent);
+            try {
+                const fileContent = fs.readFileSync(messagesPath, 'utf8');
+                messages = JSON.parse(fileContent);
+            } catch (parseError) {
+                console.error('Error parsing messages.json, starting with empty array:', parseError);
+                messages = [];
+            }
         }
         
         // Create a bot message object similar to user messages
@@ -111,10 +116,17 @@ function logBotMessage(to, message, chatInfo = {}) {
         };
         
         messages.push(botMessage);
-        fs.writeFileSync(messagesPath, JSON.stringify(messages, null, 2));
-        console.log(`Bot message logged: "${message.substring(0, 50)}..." to ${to}`);
+        
+        // Write with error handling
+        try {
+            fs.writeFileSync(messagesPath, JSON.stringify(messages, null, 2));
+            console.log(`✅ Bot message logged successfully: "${message.substring(0, 50)}..." to ${to}`);
+        } catch (writeError) {
+            console.error('❌ Error writing bot message to messages.json:', writeError);
+        }
+        
     } catch (error) {
-        console.error('Error logging bot message:', error);
+        console.error('❌ Error in logBotMessage function:', error);
     }
 }
 
@@ -123,6 +135,10 @@ async function Main() {
     try {
         //console.log(configs);
         var page;
+        
+        // Initialize messages.json file
+        initializeMessagesFile();
+        
         await downloadAndStartThings();
         // var isLogin = await checkLogin();
         // if (!isLogin) {
@@ -133,6 +149,10 @@ async function Main() {
         // }
         // await setupPopup();
         await checkForUpdate();
+        
+        // Test message logging functionality
+        testMessageLogging();
+        
         console.log("WBOT is ready !! Let those message come.");
     } catch (e) {
         console.error("\nLooks like you got an error. " + e);
@@ -252,11 +272,33 @@ async function Main() {
 
             let chat = await client.getChatById(msg.from)
             console.log(`Message ${msg.body} received in ${chat.name} chat`)
-            const messages = require(path.resolve('messages.json'));
+            
+            // FIX: Use fs.readFileSync instead of require to avoid caching issues
+            const messagesPath = path.resolve('messages.json');
+            let messages = [];
+            
+            // Read existing messages without caching
+            if (fs.existsSync(messagesPath)) {
+                try {
+                    const fileContent = fs.readFileSync(messagesPath, 'utf8');
+                    messages = JSON.parse(fileContent);
+                } catch (error) {
+                    console.error('Error reading messages.json:', error);
+                    messages = [];
+                }
+            }
+            
             msg.timestamp = moment().format('DD/MM/YYYY HH:mm');
             msg._data['chatName'] = chat.name
             messages.push(msg)
-            fs.writeFileSync(path.resolve('messages.json'), JSON.stringify(messages, null, 2))
+            
+            try {
+                fs.writeFileSync(messagesPath, JSON.stringify(messages, null, 2));
+                console.log(`User message logged: "${msg.body.substring(0, 50)}..." from ${msg.from}`);
+            } catch (error) {
+                console.error('Error writing user message to messages.json:', error);
+            }
+
             // if it is a media message then download the media and save it in the media folder
             if (msg.hasMedia && configs.appconfig.downloadMedia) {
                 console.log("Message has media. downloading");
@@ -344,8 +386,8 @@ async function sendReply({ msg, client, data, noMatch }) {
 
     if (noMatch) {
         if (appconfig.noMatch.length != 0) {
-            let response = await getResponse(msg, appconfig.noMatch);;
-            console.log(`No match found Replying with ${response}`);
+            let response = await getResponse(msg, appconfig.noMatch);
+            console.log(`❓ No match found. Replying with: "${response.substring(0, 100)}..."`);
             if (!configs.appconfig.quoteMessageInReply) {
                 await client.sendMessage(msg.from, response);
                 // LOG THE BOT MESSAGE
@@ -360,12 +402,12 @@ async function sendReply({ msg, client, data, noMatch }) {
 
             return;
         }
-        console.log(`No match found`);
+        console.log(`❓ No match found and no default response configured`);
         return;
     }
 
     let response = await getResponse(msg, data.response);
-    console.log(`Replying with ${response}`);
+    console.log(`📤 Replying with: "${response.substring(0, 100)}..."`);
 
     if (data.afterSeconds) {
         await utils.delay(data.afterSeconds * 1000);
@@ -594,7 +636,8 @@ async function smartReply({ msg, client }) {
             const response = conversationManager.getResponse(userId, data);
             
             if (response && response.message) {
-                console.log(`Tree Response: User in state '${response.state}' - ${response.isError ? 'Error' : 'Success'}`);
+                console.log(`🤖 Tree Response: User in state '${response.state}' - ${response.isError ? 'Error' : 'Success'}`);
+                console.log(`📤 Sending bot response: "${response.message.substring(0, 100)}..."`);
                 
                 // Send the tree-based response
                 if (!appconfig.appconfig.quoteMessageInReply) {
@@ -609,7 +652,7 @@ async function smartReply({ msg, client }) {
                 return;
             }
         } catch (error) {
-            console.error('Error in conversation manager:', error);
+            console.error('❌ Error in conversation manager:', error);
         }
     }
 
@@ -695,6 +738,47 @@ function downloadMessagesAsExcel() {
     XLSX.writeFile(wb, 'Test_WhatsApp_Messages.xlsx');
     
     alert('Test Excel file downloaded! Check if it has the Request column.');
+}
+
+// Initialize messages.json file if it doesn't exist
+function initializeMessagesFile() {
+    const messagesPath = path.resolve('messages.json');
+    if (!fs.existsSync(messagesPath)) {
+        try {
+            fs.writeFileSync(messagesPath, JSON.stringify([], null, 2));
+            console.log('📝 Created messages.json file');
+        } catch (error) {
+            console.error('❌ Error creating messages.json file:', error);
+        }
+    }
+}
+
+// Test function to verify message logging
+function testMessageLogging() {
+    console.log('🧪 Testing message logging functionality...');
+    const testMessage = "Test bot response - " + new Date().toISOString();
+    const testUserId = "test_user@c.us";
+    
+    logBotMessage(testUserId, testMessage, { chatName: "Test Chat" });
+    
+    // Verify the message was logged
+    setTimeout(() => {
+        try {
+            const messagesPath = path.resolve('messages.json');
+            if (fs.existsSync(messagesPath)) {
+                const fileContent = fs.readFileSync(messagesPath, 'utf8');
+                const messages = JSON.parse(fileContent);
+                const testMsg = messages.find(msg => msg.body === testMessage);
+                if (testMsg) {
+                    console.log('✅ Message logging test passed!');
+                } else {
+                    console.log('❌ Message logging test failed - message not found');
+                }
+            }
+        } catch (error) {
+            console.log('❌ Message logging test failed with error:', error);
+        }
+    }, 1000);
 }
 
 Main();
