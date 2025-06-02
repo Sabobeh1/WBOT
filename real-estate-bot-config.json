@@ -1,0 +1,168 @@
+{
+  "botConfig": {
+    "name": "Real Estate Lead Qualification Bot",
+    "version": "1.0",
+    "enabled": true,
+    "fallbackToGeneralBot": true,
+    "sessionTimeoutMinutes": 1440,
+    "logLevel": "info"
+  },
+  "languageSettings": {
+    "defaultLanguage": "EN",
+    "supportedLanguages": ["AR", "EN"],
+    "detectionMethod": "unicode",
+    "arabicUnicodeRange": "\\u0600-\\u06FF"
+  },
+  "templates": {
+    "initial_question": {
+      "AR": "هل أنت متأكد أنك صاحب عقار ترغب في بيعه أو تأجيره؟",
+      "EN": "Are you sure you are a property owner looking to sell or rent your property?"
+    },
+    "step1_yes_reply": {
+      "AR": "ممتاز! لدينا عميل محتمل مهتمّ في عقارك. هل ترغب في بيعه أم تأجيره؟",
+      "EN": "Great! We have a potential client interested in your property. Are you interested in selling it or renting it?"
+    },
+    "step1_no_reply": {
+      "AR": "حسنًا. هل لديك أي عقار ترغب في بيعه أو تأجيره؟",
+      "EN": "Okay. Do you have any property you'd like to sell or rent?"
+    },
+    "final_message": {
+      "AR": "سنقوم بالرد عليك في أقرب وقت ممكن\nنتمنى لك يوماً سعيداً",
+      "EN": "We will get back to you as soon as possible.\nHave a nice day."
+    },
+    "fallback_message": {
+      "AR": "سيتم الرد عليك بأقرب وقت ممكن\nنتمنى لك يوماً سعيداً",
+      "EN": "We will get back to you as soon as possible.\nHave a nice day."
+    }
+  },
+  "keywords": {
+    "EN": {
+      "affirmative": [
+        "yes", "y", "yeah", "ye", "yup", "ok", "okay", "sure", "yep", "yess", 
+        "absolutely", "definitely", "of course", "certainly", "indeed", "correct",
+        "right", "true", "agree", "uh huh", "mhm", "mm-hmm", "si", "oui"
+      ],
+      "negative": [
+        "no", "n", "nope", "nah", "nay", "not", "never", "none", "negative",
+        "disagree", "wrong", "false", "incorrect", "uh uh", "noo", "nooo",
+        "absolutely not", "definitely not", "of course not", "certainly not"
+      ]
+    },
+    "AR": {
+      "affirmative": ["نعم", "اه", "ايوة", "تمام", "اوكي"],
+      "negative": ["لا", "مش", "كلا", "ما بدي"]
+    }
+  },
+  "conversationFlow": {
+    "steps": [
+      {
+        "stepNumber": 0,
+        "name": "initialization",
+        "description": "Language detection and initial question",
+        "action": "detect_language_and_ask_initial_question"
+      },
+      {
+        "stepNumber": 1,
+        "name": "property_ownership_question",
+        "description": "Are you a property owner?",
+        "yesAction": "ask_sell_or_rent",
+        "noAction": "ask_have_property",
+        "fallbackAction": "send_fallback_and_end"
+      },
+      {
+        "stepNumber": 2,
+        "name": "property_transaction_question", 
+        "description": "Do you want to sell/rent or have property?",
+        "yesAction": "send_final_message_and_end",
+        "noAction": "send_final_message_and_end",
+        "fallbackAction": "send_fallback_and_end"
+      }
+    ]
+  },
+  "leadScoring": {
+    "qualifiedLeadCriteria": {
+      "anyStepYes": true,
+      "bothStepsYes": false
+    },
+    "priorityLevels": {
+      "high": {
+        "criteria": ["firstInterested=yes", "secondInterested=yes"],
+        "score": 100
+      },
+      "medium": {
+        "criteria": ["firstInterested=yes", "secondInterested=no"],
+        "score": 75
+      },
+      "low": {
+        "criteria": ["firstInterested=no", "secondInterested=yes"],
+        "score": 50
+      },
+      "none": {
+        "criteria": ["firstInterested=no", "secondInterested=no"],
+        "score": 0
+      }
+    }
+  },
+  "integrations": {
+    "crm": {
+      "enabled": false,
+      "webhook": "",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    },
+    "email": {
+      "enabled": false,
+      "notifyOnQualifiedLead": false,
+      "recipients": []
+    },
+    "slack": {
+      "enabled": false,
+      "webhook": "",
+      "channel": "#leads"
+    }
+  },
+  "analytics": {
+    "trackLanguageDistribution": true,
+    "trackConversionRates": true,
+    "trackFallbackReasons": true,
+    "exportFormat": "json"
+  },
+  "testing": {
+    "testUsers": [
+      "test_arabic@c.us",
+      "test_english@c.us", 
+      "test_fallback@c.us"
+    ],
+    "testScenarios": [
+      {
+        "name": "Arabic Yes-Yes Flow",
+        "user": "test_arabic@c.us",
+        "messages": ["اه", "نعم", "ايوة"],
+        "expectedResult": "interested=yes"
+      },
+      {
+        "name": "English No-Yes Flow", 
+        "user": "test_english@c.us",
+        "messages": ["Hello", "no", "yes"],
+        "expectedResult": "interested=yes"
+      },
+      {
+        "name": "Fallback Scenario",
+        "user": "test_fallback@c.us", 
+        "messages": ["Hello", "maybe"],
+        "expectedResult": "interested=no, fallback=true"
+      }
+    ]
+  },
+  "transactionKeywords": {
+    "EN": {
+      "sell": ["sell", "selling", "sale"],
+      "rent": ["rent", "renting", "lease", "leasing"]
+    },
+    "AR": {
+      "sell": ["بيع", "ابيع", "أبيع"],
+      "rent": ["تأجير", "تاجير", "ايجار", "أؤجر"]
+    }
+  }
+} 

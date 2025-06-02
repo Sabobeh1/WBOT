@@ -159,17 +159,19 @@
 
     // SIMPLIFIED Function to download messages as Excel
     function downloadMessagesAsExcel() {
+        // Alias to maintain button onclick but now uses leads
+        downloadLeadsAsExcel();
+    }
+
+    function downloadLeadsAsExcel() {
         // Check if XLSX library is loaded
         if (typeof XLSX === 'undefined') {
             alert('Excel library not loaded. Please refresh the page and try again.');
             return;
         }
 
-        // Create sample data first to test if Excel generation works
-        console.log('Creating Excel with sample data...');
-        
-        // Let's try with the existing today's messages first
-        fetch('/messages.json')
+        // Fetch leads data
+        fetch('/leads.json')
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -177,29 +179,25 @@
                 return response.json();
             })
             .then(data => {
-                console.log('Received data:', data);
-                
+                console.log('Received leads:', data);
                 if (!Array.isArray(data) || data.length === 0) {
-                    // If no data from today, create sample data to test Excel generation
-                    console.log('No data from today, creating sample data...');
-                    data = [{
-                        _data: { notifyName: 'Test User', chatName: 'Test Chat' },
-                        timestamp: '01/06/2025 12:00',
-                        body: 'Test message',
-                        from: '1234567890@c.us',
-                        id: { _serialized: 'test_id_123' },
-                        deviceType: 'web'
-                    }];
+                    alert('No leads available to export.');
+                    return;
                 }
-                
-                // Process data for Excel
-                const excelData = data.map(msg => ({
-                    'Sender Name': (msg._data && msg._data.notifyName) || 'N/A',
-                    'Date & Time': msg.timestamp || 'N/A',
-                    'Message Content': msg.body || 'N/A',
-                    'Sender Phone': msg.from ? msg.from.replace('@c.us', '') : 'N/A',
-                    'Message ID': (msg.id && msg.id._serialized) || 'N/A',
-                    'Device Type': msg.deviceType || 'N/A'
+
+                const excelData = data.map(lead => ({
+                    'Name': lead.notifyName || 'Unknown',
+                    'Phone': lead.userPhone || '',
+                    'Language': lead.detectedLanguage || '',
+                    'First Interested': lead.firstInterested || '',
+                    'Second Interested': lead.secondInterested || '',
+                    'Interested': lead.interested || '',
+                    'Transaction Type': lead.transactionType || '',
+                    'Lead Score': lead.leadScore || 0,
+                    'Qualified': lead.isQualifiedLead ? 'Yes' : 'No',
+                    'Processed': lead.processed ? 'Yes' : 'No',
+                    'Date': lead.timestamp || '',
+                    'Conversation ID': lead.conversationId || ''
                 }));
 
                 console.log('Excel data prepared:', excelData);
@@ -209,21 +207,18 @@
                 const ws = XLSX.utils.json_to_sheet(excelData);
 
                 // Set column widths
-                ws['!cols'] = [
-                    { wch: 20 }, { wch: 18 }, { wch: 30 }, 
-                    { wch: 15 }, { wch: 25 }, { wch: 12 }
-                ];
+                ws['!cols'] = Object.keys(excelData[0]).map(h => ({ wch: Math.max(h.length + 2, 18) }));
 
-                XLSX.utils.book_append_sheet(wb, ws, 'Messages');
+                XLSX.utils.book_append_sheet(wb, ws, 'Leads');
 
                 // Generate filename
                 const now = new Date();
-                const filename = `WhatsApp_Messages_${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}.xlsx`;
+                const filename = `RealEstate_Leads_${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}.xlsx`;
 
                 console.log('Downloading file:', filename);
                 XLSX.writeFile(wb, filename);
                 
-                alert(`Excel file downloaded successfully! ${excelData.length} messages exported.`);
+                alert(`Excel file downloaded successfully! ${excelData.length} leads exported.`);
             })
             .catch(error => {
                 console.error('Error:', error);

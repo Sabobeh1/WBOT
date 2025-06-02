@@ -74,6 +74,19 @@ const graphicalInterface = (USERNAME, PASSWORD, PORT) => {
     }
   })
   
+  // NEW — return the array stored in leads.json
+  app.get('/leads.json', (req, res) => {
+    try {
+      const leadsPath = path.resolve('.', 'leads.json')
+      delete require.cache[leadsPath]            // always fresh
+      const leads = require(leadsPath)
+      res.json(leads)
+    } catch (e) {
+      console.error('Cannot read leads.json', e)
+      res.status(500).json({ error: 'leads.json not found' })
+    }
+  })
+  
   app.get('/messages.json', (req, res) => {
     const messages = require(path.resolve('.','messages.json'))
     let todayMessages = []

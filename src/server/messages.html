@@ -133,19 +133,29 @@
                 console.error('Error fetching data:', error);
             })
 
-        // Function to download messages as Excel
+        // Function to download leads as Excel (replacing messages)
         function downloadMessagesAsExcel() {
-            fetch('/all-messages.json')
+            fetch('/leads.json')
                 .then(response => response.json())
                 .then(data => {
-                    // Process data to extract required fields
-                    const excelData = data.map(msg => ({
-                        'Sender Name': msg._data?.notifyName || 'N/A',
-                        'Date & Time': msg.timestamp || 'N/A',
-                        'Message Content': msg.body || 'N/A',
-                        'Sender Phone': msg.from ? msg.from.replace('@c.us', '') : 'N/A',
-                        'Message ID': msg.id?._serialized || 'N/A',
-                        'Device Type': msg.deviceType || 'N/A'
+                    if (!Array.isArray(data) || data.length === 0) {
+                        alert('No leads to export.');
+                        return;
+                    }
+
+                    const excelData = data.map(lead => ({
+                        'Name': lead.notifyName || 'Unknown',
+                        'Phone': lead.userPhone || '',
+                        'Language': lead.detectedLanguage || '',
+                        'First Interested': lead.firstInterested || '',
+                        'Second Interested': lead.secondInterested || '',
+                        'Interested': lead.interested || '',
+                        'Transaction Type': lead.transactionType || '',
+                        'Lead Score': lead.leadScore || 0,
+                        'Qualified': lead.isQualifiedLead ? 'Yes' : 'No',
+                        'Processed': lead.processed ? 'Yes' : 'No',
+                        'Date': lead.timestamp || '',
+                        'Conversation ID': lead.conversationId || ''
                     }));
 
                     // Create workbook and worksheet
@@ -153,29 +163,21 @@
                     const ws = XLSX.utils.json_to_sheet(excelData);
 
                     // Set column widths
-                    const colWidths = [
-                        { wch: 20 }, // Sender Name
-                        { wch: 18 }, // Date & Time
-                        { wch: 30 }, // Message Content
-                        { wch: 15 }, // Sender Phone
-                        { wch: 25 }, // Message ID
-                        { wch: 12 }  // Device Type
-                    ];
+                    const colWidths = Object.keys(excelData[0]).map(h => ({ wch: Math.max(h.length + 2, 18) }));
                     ws['!cols'] = colWidths;
 
-                    // Add worksheet to workbook
-                    XLSX.utils.book_append_sheet(wb, ws, 'Messages');
+                    XLSX.utils.book_append_sheet(wb, ws, 'Leads');
 
                     // Generate filename with current date
                     const now = new Date();
-                    const filename = `WhatsApp_Messages_${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}.xlsx`;
+                    const filename = `RealEstate_Leads_${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}.xlsx`;
 
                     // Download the file
                     XLSX.writeFile(wb, filename);
                 })
                 .catch(error => {
-                    console.error('Error downloading messages:', error);
-                    alert('Error downloading messages. Please try again.');
+                    console.error('Error downloading leads:', error);
+                    alert('Error downloading leads. Please try again.');
                 });
         }
     </script>

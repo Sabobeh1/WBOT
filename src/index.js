@@ -22,11 +22,14 @@ const moment = require('moment')
 const graphicalInterface = require('./server/server')
 // Import conversation manager for tree-based conversations
 const ConversationManager = require('./conversationManager');
+// Import Real Estate Lead Bot for bilingual lead qualification
+const RealEstateLeadBot = require('./realEstateLeadBot');
 //TODO: remove this
 // const {write,read}=require('../media/tem')
 
-// Initialize conversation manager
+// Initialize conversation managers
 let conversationManager = null;
+let realEstateBot = null;
 
 let appconfig = null;
 
@@ -232,12 +235,22 @@ async function Main() {
             conversationManager = new ConversationManager();
             console.log('Conversation Manager initialized with tree-based navigation!');
             
+            // Initialize Real Estate Lead Bot
+            realEstateBot = new RealEstateLeadBot();
+            console.log('🏢 Real Estate Lead Bot initialized with bilingual support (Arabic/English)!');
+            
             // Set up session cleanup interval (every 30 minutes)
             setInterval(() => {
                 if (conversationManager) {
                     conversationManager.cleanupOldSessions();
                     const stats = conversationManager.getSessionStats();
                     console.log(`Session cleanup: ${stats.activeSessions} active sessions`);
+                }
+                
+                if (realEstateBot) {
+                    realEstateBot.cleanupOldSessions();
+                    const leadStats = realEstateBot.getSessionStats();
+                    console.log(`🏢 Lead Bot cleanup: ${leadStats.activeSessions} active lead sessions`);
                 }
             }, 30 * 60 * 1000);
             
@@ -630,7 +643,54 @@ async function smartReply({ msg, client }) {
         return;
     }
 
-    // Use conversation manager for tree-based responses
+    // 🏢 PRIORITY: Use Real Estate Lead Bot for lead qualification
+    if (realEstateBot) {
+        try {
+            const response = realEstateBot.getResponse(userId, data);
+            
+            if (response && response.message) {
+                console.log(`🏢 Real Estate Bot Response: Language: ${response.sessionData.detectedLanguage}, Step: ${response.sessionData.currentStep}`);
+                console.log(`📊 Lead Status: First: ${response.sessionData.firstInterested}, Second: ${response.sessionData.secondInterested}, Final: ${response.sessionData.interested}`);
+                console.log(`📤 Sending bot response: "${response.message.substring(0, 100)}..."`);
+                
+                // Send the Real Estate bot response
+                if (!appconfig.appconfig.quoteMessageInReply) {
+                    await client.sendMessage(msg.from, response.message);
+                    // LOG THE REAL ESTATE BOT RESPONSE
+                    logBotMessage(msg.from, response.message, { chatName: msg._data?.chatName });
+                } else {
+                    await msg.reply(response.message);
+                    // LOG THE REAL ESTATE BOT RESPONSE
+                    logBotMessage(msg.from, response.message, { chatName: msg._data?.chatName });
+                }
+
+                // If conversation is complete, log the lead data
+                if (response.conversationComplete) {
+                    console.log(`🎯 Lead qualification completed!`);
+                    console.log(`📋 Final lead data:`, {
+                        userId: userId,
+                        conversationId: response.sessionData.conversationId,
+                        language: response.sessionData.detectedLanguage,
+                        interested: response.sessionData.interested,
+                        firstInterested: response.sessionData.firstInterested,
+                        secondInterested: response.sessionData.secondInterested,
+                        transactionType: response.sessionData.transactionType || '',
+                        leadScore: response.sessionData.leadScore || 0
+                    });
+
+                    // Save lead data to a separate leads.json file for CRM integration
+                    await saveLeadData(response.sessionData, msg);
+                }
+
+                return; // Exit early as Real Estate bot handled the message
+            }
+        } catch (error) {
+            console.error('❌ Error in Real Estate Lead Bot:', error);
+            // Continue to fallback logic below
+        }
+    }
+
+    // Fallback to original conversation manager for other conversations
     if (conversationManager) {
         try {
             const response = conversationManager.getResponse(userId, data);
@@ -656,7 +716,7 @@ async function smartReply({ msg, client }) {
         }
     }
 
-    // Fallback to original bot logic if conversation manager fails
+    // Final fallback to original bot logic if both Real Estate and Conversation Manager fail
     const list = appconfig.bot;
     var exactMatch = list.find((obj) =>
         obj.exact.find((ex) => ex == data.toLowerCase())
@@ -753,13 +813,66 @@ function initializeMessagesFile() {
     }
 }
 
-// Test function to verify message logging
+// Test function to verify message logging and Real Estate Lead Bot
 function testMessageLogging() {
     console.log('🧪 Testing message logging functionality...');
     const testMessage = "Test bot response - " + new Date().toISOString();
     const testUserId = "test_user@c.us";
     
     logBotMessage(testUserId, testMessage, { chatName: "Test Chat" });
+    
+    // Test Real Estate Lead Bot if available
+    if (realEstateBot) {
+        console.log('🏢 Testing Real Estate Lead Bot...');
+        
+        // Test Arabic language detection and flow
+        console.log('🧪 Testing Arabic flow...');
+        const arabicTestUser = "arabic_test@c.us";
+        
+        // Initial Arabic message
+        let response1 = realEstateBot.getResponse(arabicTestUser, "اه");
+        console.log(`Arabic Test 1: ${response1.message.substring(0, 50)}...`);
+        console.log(`Language detected: ${response1.sessionData.detectedLanguage}`);
+        
+        // Response to first question
+        let response2 = realEstateBot.getResponse(arabicTestUser, "نعم");
+        console.log(`Arabic Test 2: ${response2.message.substring(0, 50)}...`);
+        console.log(`First interested: ${response2.sessionData.firstInterested}`);
+        
+        // Response to second question
+        let response3 = realEstateBot.getResponse(arabicTestUser, "اه");
+        console.log(`Arabic Test 3: ${response3.message.substring(0, 50)}...`);
+        console.log(`Final result - Interested: ${response3.sessionData.interested}, Complete: ${response3.conversationComplete}`);
+        
+        // Test English language detection and flow
+        console.log('🧪 Testing English flow...');
+        const englishTestUser = "english_test@c.us";
+        
+        // Initial English message
+        let enResponse1 = realEstateBot.getResponse(englishTestUser, "Hello");
+        console.log(`English Test 1: ${enResponse1.message.substring(0, 50)}...`);
+        console.log(`Language detected: ${enResponse1.sessionData.detectedLanguage}`);
+        
+        // Response to first question
+        let enResponse2 = realEstateBot.getResponse(englishTestUser, "no");
+        console.log(`English Test 2: ${enResponse2.message.substring(0, 50)}...`);
+        console.log(`First interested: ${enResponse2.sessionData.firstInterested}`);
+        
+        // Response to second question
+        let enResponse3 = realEstateBot.getResponse(englishTestUser, "yes");
+        console.log(`English Test 3: ${enResponse3.message.substring(0, 50)}...`);
+        console.log(`Final result - Interested: ${enResponse3.sessionData.interested}, Complete: ${enResponse3.conversationComplete}`);
+        
+        // Test fallback scenario
+        console.log('🧪 Testing fallback scenario...');
+        const fallbackTestUser = "fallback_test@c.us";
+        let fallbackResponse1 = realEstateBot.getResponse(fallbackTestUser, "Hello");
+        let fallbackResponse2 = realEstateBot.getResponse(fallbackTestUser, "I don't understand");
+        console.log(`Fallback Test: ${fallbackResponse2.message.substring(0, 50)}...`);
+        console.log(`Fallback result - Interested: ${fallbackResponse2.sessionData.interested}, Complete: ${fallbackResponse2.conversationComplete}`);
+        
+        console.log('✅ Real Estate Lead Bot tests completed!');
+    }
     
     // Verify the message was logged
     setTimeout(() => {
@@ -779,6 +892,85 @@ function testMessageLogging() {
             console.log('❌ Message logging test failed with error:', error);
         }
     }, 1000);
+}
+
+// Function to save lead data for CRM integration
+async function saveLeadData(sessionData, msg) {
+    try {
+        const leadsPath = path.resolve('leads.json');
+        let leads = [];
+        
+        // Read existing leads
+        if (fs.existsSync(leadsPath)) {
+            try {
+                const fileContent = fs.readFileSync(leadsPath, 'utf8');
+                leads = JSON.parse(fileContent);
+            } catch (parseError) {
+                console.error('Error parsing leads.json, starting with empty array:', parseError);
+                leads = [];
+            }
+        }
+        
+        // Create lead entry
+        const leadEntry = {
+            // Conversation metadata
+            conversationId: sessionData.conversationId,
+            userId: msg.from,
+            userPhone: msg.from.split("@")[0],
+            chatName: msg._data?.chatName || "Unknown",
+            
+            // Lead qualification results
+            detectedLanguage: sessionData.detectedLanguage,
+            firstInterested: sessionData.firstInterested,
+            secondInterested: sessionData.secondInterested,
+            interested: sessionData.interested,
+            transactionType: sessionData.transactionType || '',
+            leadScore: sessionData.leadScore || 0,
+            
+            // Timestamps
+            completedAt: new Date().toISOString(),
+            timestamp: moment().format('DD/MM/YYYY HH:mm'),
+            
+            // Message logs for audit trail
+            messageLog: sessionData.messageLog.map(msgLog => ({
+                direction: msgLog.direction,
+                content: msgLog.content,
+                matchedIntent: msgLog.matchedIntent,
+                matchedStep: msgLog.matchedStep,
+                timestamp: msgLog.timestamp
+            })),
+            
+            // User info
+            notifyName: msg._data?.notifyName || "Unknown",
+            deviceType: msg.deviceType || "unknown",
+            
+            // Status flags for CRM
+            isQualifiedLead: sessionData.interested === 'yes',
+            needsFollowUp: sessionData.interested === 'yes',
+            processed: false // Flag for CRM to track if lead has been contacted
+        };
+        
+        leads.push(leadEntry);
+        
+        // Write with error handling
+        try {
+            fs.writeFileSync(leadsPath, JSON.stringify(leads, null, 2));
+            console.log(`✅ Lead data saved successfully for conversation ${sessionData.conversationId}`);
+            
+            // Log summary for easy monitoring
+            if (sessionData.interested === 'yes') {
+                console.log(`🌟 QUALIFIED LEAD ALERT: ${msg._data?.notifyName || 'Unknown'} (${msg.from.split("@")[0]}) - Language: ${sessionData.detectedLanguage}`);
+            } else {
+                console.log(`📝 Lead recorded: Not interested - ${msg._data?.notifyName || 'Unknown'}`);
+            }
+            
+        } catch (writeError) {
+            console.error('❌ Error writing lead data to leads.json:', writeError);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error in saveLeadData function:', error);
+    }
 }
 
 Main();

@@ -1,0 +1,128 @@
+[
+  {
+    "conversationId": "conv_1748855908772_lrqg6fpvi",
+    "userId": "970569681560@c.us",
+    "userPhone": "970569681560",
+    "chatName": "حمادة",
+    "detectedLanguage": "AR",
+    "firstInterested": "yes",
+    "secondInterested": "yes",
+    "interested": "yes",
+    "transactionType": "sell",
+    "leadScore": 100,
+    "completedAt": "2025-06-02T09:18:41.983Z",
+    "timestamp": "02/06/2025 12:18",
+    "messageLog": [
+      {
+        "direction": "INBOUND",
+        "content": "مرحبا",
+        "matchedIntent": "null",
+        "matchedStep": 0,
+        "timestamp": "2025-06-02T09:18:28.772Z"
+      },
+      {
+        "direction": "OUTBOUND",
+        "content": "هل أنت متأكد أنك صاحب عقار ترغب في بيعه أو تأجيره؟",
+        "matchedIntent": "null",
+        "matchedStep": 0,
+        "timestamp": "2025-06-02T09:18:28.772Z"
+      },
+      {
+        "direction": "INBOUND",
+        "content": "نعم",
+        "matchedIntent": "yes",
+        "matchedStep": 1,
+        "timestamp": "2025-06-02T09:18:34.466Z"
+      },
+      {
+        "direction": "OUTBOUND",
+        "content": "ممتاز! لدينا عميل محتمل مهتمّ في عقارك. هل ترغب في بيعه أم تأجيره؟",
+        "matchedIntent": "yes",
+        "matchedStep": 1,
+        "timestamp": "2025-06-02T09:18:34.466Z"
+      },
+      {
+        "direction": "INBOUND",
+        "content": "بيع",
+        "matchedIntent": "unrecognized",
+        "matchedStep": 2,
+        "timestamp": "2025-06-02T09:18:41.971Z"
+      },
+      {
+        "direction": "OUTBOUND",
+        "content": "سنقوم بالرد عليك في أقرب وقت ممكن\nنتمنى لك يوماً سعيداً",
+        "matchedIntent": "sell",
+        "matchedStep": 2,
+        "timestamp": "2025-06-02T09:18:41.971Z"
+      }
+    ],
+    "notifyName": "Mohammad Sabobeh",
+    "deviceType": "ios",
+    "isQualifiedLead": true,
+    "needsFollowUp": true,
+    "processed": false
+  },
+  {
+    "conversationId": "conv_1748856036658_ggomdfzpw",
+    "userId": "970594631407@c.us",
+    "userPhone": "970594631407",
+    "chatName": "+970 594 631 407",
+    "detectedLanguage": "AR",
+    "firstInterested": "no",
+    "secondInterested": "no",
+    "interested": "no",
+    "transactionType": "",
+    "leadScore": 0,
+    "completedAt": "2025-06-02T09:20:54.795Z",
+    "timestamp": "02/06/2025 12:20",
+    "messageLog": [
+      {
+        "direction": "INBOUND",
+        "content": "مرحبا",
+        "matchedIntent": "null",
+        "matchedStep": 0,
+        "timestamp": "2025-06-02T09:20:36.658Z"
+      },
+      {
+        "direction": "OUTBOUND",
+        "content": "هل أنت متأكد أنك صاحب عقار ترغب في بيعه أو تأجيره؟",
+        "matchedIntent": "null",
+        "matchedStep": 0,
+        "timestamp": "2025-06-02T09:20:36.659Z"
+      },
+      {
+        "direction": "INBOUND",
+        "content": "لا",
+        "matchedIntent": "no",
+        "matchedStep": 1,
+        "timestamp": "2025-06-02T09:20:45.419Z"
+      },
+      {
+        "direction": "OUTBOUND",
+        "content": "حسنًا. هل لديك أي عقار ترغب في بيعه أو تأجيره؟",
+        "matchedIntent": "no",
+        "matchedStep": 1,
+        "timestamp": "2025-06-02T09:20:45.419Z"
+      },
+      {
+        "direction": "INBOUND",
+        "content": "لا",
+        "matchedIntent": "no",
+        "matchedStep": 2,
+        "timestamp": "2025-06-02T09:20:54.758Z"
+      },
+      {
+        "direction": "OUTBOUND",
+        "content": "سنقوم بالرد عليك في أقرب وقت ممكن\nنتمنى لك يوماً سعيداً",
+        "matchedIntent": "no",
+        "matchedStep": 2,
+        "timestamp": "2025-06-02T09:20:54.759Z"
+      }
+    ],
+    "notifyName": "Dalia Shehadeh",
+    "deviceType": "ios",
+    "isQualifiedLead": false,
+    "needsFollowUp": false,
+    "processed": false
+  }
+]
