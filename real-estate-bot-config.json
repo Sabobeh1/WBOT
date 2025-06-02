@@ -23,11 +23,11 @@
       "EN": "Great! We have a potential client interested in your property. Are you interested in selling it or renting it?"
     },
     "step1_no_reply": {
-      "AR": "حسنًا. هل لديك أي عقار ترغب في بيعه أو تأجيره؟",
-      "EN": "Okay. Do you have any property you'd like to sell or rent?"
+      "AR": "حسنًا. هل انت مهتم بشيئ من هذه الخدمات؟",
+      "EN": "Okay. Are you interested in any of these topics?"
     },
     "final_message": {
-      "AR": "سنقوم بالرد عليك في أقرب وقت ممكن\nنتمنى لك يوماً سعيداً",
+      "AR": "سنقوم بالرد عليك في حال كنت مهتم بأقرب وقت ممكن\nنتمنى لك يوماً سعيداً",
       "EN": "We will get back to you as soon as possible.\nHave a nice day."
     },
     "fallback_message": {

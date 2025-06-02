@@ -148,6 +148,10 @@ const graphicalInterface = (USERNAME, PASSWORD, PORT) => {
     res.redirect('/');
   });
 
+  app.get('/leads', (req, res) => {
+    res.sendFile(path.join(__dirname, '/leads.html'))
+  })
+
   app.listen(PORT, () => {
     console.log(`You can use the graphical interface at [your_ipv4_address]:${PORT}`)
   });

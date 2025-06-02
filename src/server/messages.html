@@ -65,6 +65,7 @@
         .download-btn:hover {
             background-color: #45a049;
         }
+        table{width:100%}
     </style>
 </head>
 
@@ -84,8 +85,14 @@
                 <span style="color: white;">|</span>
             </li>
             <li>
-                <a href="javascript:void(0)" onclick="downloadMessagesAsExcel()" style="color: #4CAF50;">
-                    📥 Export Excel
+                <a href="/leads">Leads</a>
+            </li>
+            <li>
+                <span style="color: white;">|</span>
+            </li>
+            <li>
+                <a href="javascript:void(0)" onclick="downloadRawMessagesExcel()" style="color: #4CAF50;">
+                    📥 Export All Messages
                 </a>
             </li>
         </ul>
@@ -94,8 +101,8 @@
     <!-- Your HTML table goes here -->
     <div style="padding-top: 50px;">
         <div style="margin-bottom: 20px; text-align: right;">
-            <button class="download-btn" onclick="downloadMessagesAsExcel()">
-                📥 Download Messages as Excel
+            <button class="download-btn" onclick="downloadRawMessagesExcel()">
+                📥 Download All Messages as Excel
             </button>
         </div>
         <table id="msgTable" class="display">
@@ -104,7 +111,8 @@
                     <th>Timestamp</th>
                     <th>Sender</th>
                     <th>Message</th>
-                    <!-- Add more columns as needed -->
+                    <th>Type</th>
+                    <th>From Me?</th>
                 </tr>
             </thead>
             <tbody id="tbody">
@@ -113,71 +121,70 @@
         </table>
     </div>
     <script>
-        var tbody = document.getElementById('tbody');
-        var today = moment()
-        fetch('/messages.json')
+        const tbody = document.getElementById('tbody');
+        
+        fetch('/all-messages.json') // Fetch ALL messages
             .then(response => response.json())
             .then(data => {
-                data.map(msg => {
-                    tbody.innerHTML += `<tr><td>${msg.timestamp}</td><td>${msg._data.chatName}</td><td>${msg.body}</td></tr>`;
+                if (!Array.isArray(data) || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5">No messages available</td></tr>';
+                    return;
+                }
+                data.forEach(msg => {
+                    const fromMe = msg.fromMe || (msg._data && msg._data.id && msg._data.id.fromMe);
+                    tbody.innerHTML += `<tr>
+                        <td>${msg.timestamp || 'N/A'}</td>
+                        <td>${(msg._data && msg._data.chatName) || (msg.from ? msg.from.replace('@c.us','') : 'N/A')}</td>
+                        <td>${msg.body || '[Media/No Content]'}</td>
+                        <td>${msg.type || 'N/A'}</td>
+                        <td>${fromMe ? 'Yes' : 'No'}</td>
+                    </tr>`;
                 });
-                $(document).ready(function () {
-                    $('#msgTable').DataTable({
-                        language: {
-                            emptyTable: 'No messages available for today'
-                        }
-                    });
+                $('#msgTable').DataTable({
+                    pageLength: 25,
+                    order: [[0, 'desc']] // Sort by timestamp descending
                 });
             })
             .catch(error => {
-                console.error('Error fetching data:', error);
-            })
+                console.error('Error fetching messages:', error);
+                tbody.innerHTML = '<tr><td colspan="5">Error loading messages.</td></tr>';
+            });
 
-        // Function to download leads as Excel (replacing messages)
-        function downloadMessagesAsExcel() {
-            fetch('/leads.json')
+        function downloadRawMessagesExcel() {
+            fetch('/all-messages.json')
                 .then(response => response.json())
                 .then(data => {
                     if (!Array.isArray(data) || data.length === 0) {
-                        alert('No leads to export.');
+                        alert('No messages to export.');
                         return;
                     }
+                    const excelData = data.map(msg => {
+                        const fromMe = msg.fromMe || (msg._data && msg._data.id && msg._data.id.fromMe);
+                        return {
+                            'Timestamp': msg.timestamp || 'N/A',
+                            'Chat Name': (msg._data && msg._data.chatName) || 'N/A',
+                            'Sender Name': (msg._data && msg._data.notifyName) || 'N/A',
+                            'Message Content': msg.body || '[Media/No Content]',
+                            'Sender Phone': msg.from ? msg.from.replace('@c.us', '') : 'N/A',
+                            'Receiver Phone': msg.to ? msg.to.replace('@c.us', '') : 'N/A',
+                            'Message ID': (msg.id && msg.id._serialized) || 'N/A',
+                            'Device Type': msg.deviceType || 'N/A',
+                            'From Me': fromMe ? 'Yes' : 'No',
+                            'Type': msg.type || 'N/A'
+                        };
+                    });
 
-                    const excelData = data.map(lead => ({
-                        'Name': lead.notifyName || 'Unknown',
-                        'Phone': lead.userPhone || '',
-                        'Language': lead.detectedLanguage || '',
-                        'First Interested': lead.firstInterested || '',
-                        'Second Interested': lead.secondInterested || '',
-                        'Interested': lead.interested || '',
-                        'Transaction Type': lead.transactionType || '',
-                        'Lead Score': lead.leadScore || 0,
-                        'Qualified': lead.isQualifiedLead ? 'Yes' : 'No',
-                        'Processed': lead.processed ? 'Yes' : 'No',
-                        'Date': lead.timestamp || '',
-                        'Conversation ID': lead.conversationId || ''
-                    }));
-
-                    // Create workbook and worksheet
                     const wb = XLSX.utils.book_new();
                     const ws = XLSX.utils.json_to_sheet(excelData);
-
-                    // Set column widths
-                    const colWidths = Object.keys(excelData[0]).map(h => ({ wch: Math.max(h.length + 2, 18) }));
-                    ws['!cols'] = colWidths;
-
-                    XLSX.utils.book_append_sheet(wb, ws, 'Leads');
-
-                    // Generate filename with current date
-                    const now = new Date();
-                    const filename = `RealEstate_Leads_${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}.xlsx`;
-
-                    // Download the file
-                    XLSX.writeFile(wb, filename);
+                    ws['!cols'] = Object.keys(excelData[0]).map(h => ({ wch: Math.max(h.length + 2, 18) }));
+                    XLSX.utils.book_append_sheet(wb, ws, 'All Messages');
+                    const n = new Date();
+                    const fname = `All_WhatsApp_Messages_${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}.xlsx`;
+                    XLSX.writeFile(wb, fname);
                 })
                 .catch(error => {
-                    console.error('Error downloading leads:', error);
-                    alert('Error downloading leads. Please try again.');
+                    console.error('Error downloading messages:', error);
+                    alert('Error downloading messages. Please try again.');
                 });
         }
     </script>

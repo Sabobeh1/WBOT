@@ -38,7 +38,7 @@
   ],
   "blocked": [],
   "allowed": [],
-  "noMatch": "🤔 I didn't quite understand that. Here are some things you can try:\n\n💬 Type 'menu' for Main Menu\n🔙 Type 'back' to go back\n🛠️ Type 'help' for assistance\n\nOr choose from the available options above!",
+  "noMatch": "",
   "smartreply": {
     "suggestions": [
       "Main Menu",

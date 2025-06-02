@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leads</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body{font-family:sans-serif}
+        .header{width:100%;display:flex;justify-content:center;background:#323232;color:#fff;position:fixed;top:0;left:0;z-index:2}
+        .header ul{display:flex;gap:25px;list-style:none;padding:5px 0;margin:0}
+        .header ul li a{color:#fff;text-decoration:none;font-size:1.1em}
+        .header ul li a:hover{text-decoration:underline}
+        .download-btn{background:#4CAF50;color:#fff;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;margin:10px 0}
+        .download-btn:hover{background:#45a049}
+        table{width:100%}
+    </style>
+</head>
+<body>
+<div class="header">
+  <ul>
+    <li><a href="/">Flow</a></li>
+    <li><span>|</span></li>
+    <li><a href="/messages">Messages</a></li>
+    <li><span>|</span></li>
+    <li><a href="/leads">Leads</a></li>
+    <li><span>|</span></li>
+    <li><a href="javascript:void(0)" onclick="downloadLeadsExcel()" style="color:#4CAF50">📥 Export Excel</a></li>
+  </ul>
+</div>
+
+<div style="padding-top:60px">
+  <button class="download-btn" onclick="downloadLeadsExcel()">📥 Download Leads as Excel</button>
+  <table id="leadTable" class="display">
+    <thead>
+      <tr id="thead"></tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script>
+const thead=document.getElementById('thead');
+const tbody=document.getElementById('tbody');
+
+fetch('/leads.json')
+  .then(r=>r.json())
+  .then(data=>{
+      if(!Array.isArray(data)||data.length===0){tbody.innerHTML='<tr><td colspan="12">No leads available</td></tr>';return;}
+      const cols=Object.keys(data[0]);
+      cols.forEach(c=>{thead.innerHTML+=`<th>${c}</th>`});
+      data.forEach(lead=>{
+          let row='<tr>';
+          cols.forEach(c=>{row+=`<td>${lead[c]??''}</td>`});
+          row+='</tr>';tbody.innerHTML+=row;
+      });
+      $('#leadTable').DataTable({pageLength:25});
+  });
+
+function downloadLeadsExcel(){
+  fetch('/leads.json').then(r=>r.json()).then(data=>{
+      if(!Array.isArray(data)||data.length===0){alert('No leads');return;}
+      const wb=XLSX.utils.book_new();
+      const ws=XLSX.utils.json_to_sheet(data);
+      ws['!cols']=Object.keys(data[0]).map(h=>({wch:Math.max(h.length+2,18)}));
+      XLSX.utils.book_append_sheet(wb,ws,'Leads');
+      const n=new Date();
+      const fname=`Leads_${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}.xlsx`;
+      XLSX.writeFile(wb,fname);
+  });
+}
+</script>
+</body>
+</html> 
