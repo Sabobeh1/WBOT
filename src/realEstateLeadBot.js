@@ -48,8 +48,8 @@ class RealEstateLeadBot {
                     EN: "Great! We have a potential client interested in your property. Are you interested in selling it or renting it?"
                 },
                 step1_no_reply: {
-                    AR: "حسنًا. هل لديك أي عقار ترغب في بيعه أو تأجيره؟",
-                    EN: "Okay. Do you have any property you'd like to sell or rent?"
+                    "AR": "حسنًا. شكرا لوقتك، هل يوجد أي أسئلة أخرى يمكنني مساعدتك بها؟",
+                    "EN": "Okay. Thank you for your time. Do you have any other questions I can help you with?"
                 },
                 final_message: {
                     AR: "سنقوم بالرد عليك في أقرب وقت ممكن\nنتمنى لك يوماً سعيداً",
