@@ -15,16 +15,16 @@
   },
   "templates": {
     "initial_question": {
-      "AR": "هل أنت متأكد أنك صاحب عقار ترغب في بيعه أو تأجيره؟",
-      "EN": "Are you sure you are a property owner looking to sell or rent your property?"
+      "AR": "هل أنت متأكد أنك صاحب عقار ترغب في بيعه أو تأجيره؟ \nيرجى الإجابة بـ 'نعم' أو 'لا'.",
+      "EN": "Are you sure you are a property owner looking to sell or rent your property? \nPlease answer with 'yes' or 'no'."
     },
     "step1_yes_reply": {
-      "AR": "ممتاز! لدينا عميل محتمل مهتمّ في عقارك. هل ترغب في بيعه أم تأجيره؟",
-      "EN": "Great! We have a potential client interested in your property. Are you interested in selling it or renting it?"
+      "AR": "ممتاز! لدينا عميل محتمل مهتمّ في عقارك. هل ترغب في بيعه أم تأجيره؟ \nيرجى الإجابة بـ 'بيع' أو 'تأجير'.",
+      "EN": "Great! We have a potential client interested in your property. Are you interested in selling it or renting it? \nPlease answer with 'sell' or 'rent'."
     },
     "step1_no_reply": {
-      "AR": "حسنًا. شكرا لوقتك، هل يوجد أي أسئلة أخرى يمكنني مساعدتك بها؟",
-      "EN": "Okay. Thank you for your time. Do you have any other questions I can help you with?"
+      "AR": "حسنًا. شكرا لوقتك، هل يوجد أي أسئلة أخرى يمكنني مساعدتك بها؟ \nيرجى الإجابة بـ 'نعم' أو 'لا'.",
+      "EN": "Okay. Thank you for your time. Do you have any other questions I can help you   with?"
     },
     "final_message": {
       "AR": "سنقوم بالرد عليك في حال كنت مهتم بأقرب وقت ممكن\nنتمنى لك يوماً سعيداً",

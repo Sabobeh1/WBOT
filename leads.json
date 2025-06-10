@@ -1,1 +1,65 @@
-[]
+[
+  {
+    "conversationId": "conv_1749560304846_v8smszuwz",
+    "userId": "970569681560@c.us",
+    "userPhone": "970569681560",
+    "chatName": "حمادة",
+    "detectedLanguage": "AR",
+    "firstInterested": "yes",
+    "secondInterested": "yes",
+    "interested": "yes",
+    "transactionType": "sell",
+    "leadScore": 100,
+    "completedAt": "2025-06-10T12:58:43.592Z",
+    "timestamp": "10/06/2025 15:58",
+    "messageLog": [
+      {
+        "direction": "INBOUND",
+        "content": "مرحبا",
+        "matchedIntent": "null",
+        "matchedStep": 0,
+        "timestamp": "2025-06-10T12:58:24.846Z"
+      },
+      {
+        "direction": "OUTBOUND",
+        "content": "هل أنت متأكد أنك صاحب عقار ترغب في بيعه أو تأجيره؟ \nيرجى الإجابة بـ 'نعم' أو 'لا'.",
+        "matchedIntent": "null",
+        "matchedStep": 0,
+        "timestamp": "2025-06-10T12:58:24.846Z"
+      },
+      {
+        "direction": "INBOUND",
+        "content": "نعم",
+        "matchedIntent": "yes",
+        "matchedStep": 1,
+        "timestamp": "2025-06-10T12:58:37.711Z"
+      },
+      {
+        "direction": "OUTBOUND",
+        "content": "ممتاز! لدينا عميل محتمل مهتمّ في عقارك. هل ترغب في بيعه أم تأجيره؟ \nيرجى الإجابة بـ 'بيع' أو 'تأجير'.",
+        "matchedIntent": "yes",
+        "matchedStep": 1,
+        "timestamp": "2025-06-10T12:58:37.712Z"
+      },
+      {
+        "direction": "INBOUND",
+        "content": "بيع",
+        "matchedIntent": "unrecognized",
+        "matchedStep": 2,
+        "timestamp": "2025-06-10T12:58:43.416Z"
+      },
+      {
+        "direction": "OUTBOUND",
+        "content": "سنقوم بالرد عليك في حال كنت مهتم بأقرب وقت ممكن\nنتمنى لك يوماً سعيداً",
+        "matchedIntent": "sell",
+        "matchedStep": 2,
+        "timestamp": "2025-06-10T12:58:43.417Z"
+      }
+    ],
+    "notifyName": "Mohammad Sabobeh",
+    "deviceType": "ios",
+    "isQualifiedLead": true,
+    "needsFollowUp": true,
+    "processed": false
+  }
+]
