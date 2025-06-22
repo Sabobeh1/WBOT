@@ -175,6 +175,10 @@ async function Main() {
     async function downloadAndStartThings() {
         appconfig = await utils.externalInjection("bot.json");
         appconfig = JSON.parse(appconfig);
+        if (appconfig.appconfig.server) {
+            const serverConfig = appconfig.appconfig.server;
+            graphicalInterface(serverConfig.username, serverConfig.password, serverConfig.port);
+        }
         spinner.start("Downloading chromium\n");
         const browserFetcher = puppeteer.createBrowserFetcher({ platform: process.platform, path: process.cwd() });
         const progressBar = new _cliProgress.Bar({}, _cliProgress.Presets.shades_grey);
