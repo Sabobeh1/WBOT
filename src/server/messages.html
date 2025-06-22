@@ -14,43 +14,48 @@
     <!-- SheetJS library for Excel export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body{
+        body {
             font-family: sans-serif;
+            background-color: #f0f2f5;
         }
+
         .header {
             width: 100%;
             justify-content: center;
             display: flex;
-            height: 30px;
-            background-color: rgb(50,50,50);
+            height: 50px;
+            background-color: #075e54;
             position: fixed;
-            top:0;
-            left:0;
-            z-index: 2;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+
         .header ul {
             display: flex;
             gap: 25px;
-            width: fit-content;
-            text-align: center;
             list-style: none;
+            margin: 0;
+            padding: 0;
             align-items: center;
         }
-        .header ul li {
-            margin-inline: auto;
-            text-align: center;
-            font-weight: 500;
-        }
+
         .header ul li a {
             color: white;
             text-decoration: none;
             font-size: 1.15em;
+            font-weight: 500;
+            transition: color 0.2s;
         }
-        .header ul li a:hover{
-            text-decoration: underline;
+        
+        .header ul li a:hover {
+            color: #dcf8c6;
         }
-        .download-btn {
-            background-color: #4CAF50;
+
+        .download-btn, #contactSelector {
+            background-color: #128c7e;
             border: none;
             color: white;
             padding: 10px 20px;
@@ -61,11 +66,52 @@
             margin: 4px 2px;
             cursor: pointer;
             border-radius: 4px;
+            transition: background-color 0.2s;
         }
-        .download-btn:hover {
-            background-color: #45a049;
+
+        .download-btn:hover, #contactSelector:hover {
+            background-color: #075e54;
         }
-        table{width:100%}
+        
+        #chat-container {
+            padding: 80px 20px 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message-bubble {
+            padding: 10px 15px;
+            border-radius: 20px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .message-bubble.user {
+            background-color: #fff;
+            align-self: flex-start;
+            border-top-left-radius: 0;
+        }
+
+        .message-bubble.bot {
+            background-color: #dcf8c6;
+            align-self: flex-end;
+            border-top-right-radius: 0;
+        }
+
+        .message-content {
+            font-size: 1em;
+            color: #111b21;
+        }
+        
+        .message-timestamp {
+            font-size: 0.75em;
+            color: #667781;
+            margin-top: 5px;
+            text-align: right;
+        }
     </style>
 </head>
 
@@ -87,105 +133,143 @@
             <li>
                 <a href="/leads">Leads</a>
             </li>
-            <li>
-                <span style="color: white;">|</span>
-            </li>
-            <li>
-                <a href="javascript:void(0)" onclick="downloadRawMessagesExcel()" style="color: #4CAF50;">
-                    📥 Export All Messages
-                </a>
-            </li>
         </ul>
     </div>
     
-    <!-- Your HTML table goes here -->
-    <div style="padding-top: 50px;">
-        <div style="margin-bottom: 20px; text-align: right;">
-            <button class="download-btn" onclick="downloadRawMessagesExcel()">
-                📥 Download All Messages as Excel
-            </button>
-        </div>
-        <table id="msgTable" class="display">
-            <thead>
-                <tr>
-                    <th>Timestamp</th>
-                    <th>Sender</th>
-                    <th>Message</th>
-                    <th>Type</th>
-                    <th>From Me?</th>
-                </tr>
-            </thead>
-            <tbody id="tbody">
-                <!-- Add more rows as needed -->
-            </tbody>
-        </table>
+    <div style="padding-top: 60px; text-align: center; margin-bottom: 20px;">
+        <select id="contactSelector">
+            <option value="">Select a Contact</option>
+        </select>
+        <button class="download-btn" onclick="downloadRawMessagesExcel()">
+            📥 Export Conversation
+        </button>
     </div>
+
+    <div id="chat-container">
+        <!-- Chat messages will be rendered here -->
+    </div>
+
     <script>
-        const tbody = document.getElementById('tbody');
-        
+        const chatContainer = document.getElementById('chat-container');
+        let allMessages = [];
+
+        function renderChat(messages) {
+            chatContainer.innerHTML = '';
+            if (!Array.isArray(messages) || messages.length === 0) {
+                chatContainer.innerHTML = '<p style="text-align:center;">No messages to display for this contact.</p>';
+                return;
+            }
+
+            // Sort messages by timestamp chronologically
+            const sortedMessages = messages.sort((a, b) => {
+                const timeA = moment(a.timestamp, 'DD/MM/YYYY HH:mm').valueOf();
+                const timeB = moment(b.timestamp, 'DD/MM/YYYY HH:mm').valueOf();
+                return timeA - timeB;
+            });
+
+            sortedMessages.forEach(msg => {
+                const fromMe = msg.fromMe || (msg._data && msg._data.id && msg._data.id.fromMe);
+                const messageClass = fromMe ? 'bot' : 'user';
+                
+                const messageBubble = document.createElement('div');
+                messageBubble.className = `message-bubble ${messageClass}`;
+                
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content';
+                messageContent.textContent = msg.body || '[Media/No Content]';
+
+                const messageTimestamp = document.createElement('div');
+                messageTimestamp.className = 'message-timestamp';
+                messageTimestamp.textContent = msg.timestamp || '';
+                
+                messageBubble.appendChild(messageContent);
+                messageBubble.appendChild(messageTimestamp);
+                chatContainer.appendChild(messageBubble);
+            });
+        }
+
         fetch('/all-messages.json') // Fetch ALL messages
             .then(response => response.json())
             .then(data => {
-                if (!Array.isArray(data) || data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5">No messages available</td></tr>';
-                    return;
-                }
+                allMessages = data;
+                const contacts = new Set();
                 data.forEach(msg => {
-                    const fromMe = msg.fromMe || (msg._data && msg._data.id && msg._data.id.fromMe);
-                    tbody.innerHTML += `<tr>
-                        <td>${msg.timestamp || 'N/A'}</td>
-                        <td>${(msg._data && msg._data.chatName) || (msg.from ? msg.from.replace('@c.us','') : 'N/A')}</td>
-                        <td>${msg.body || '[Media/No Content]'}</td>
-                        <td>${msg.type || 'N/A'}</td>
-                        <td>${fromMe ? 'Yes' : 'No'}</td>
-                    </tr>`;
+                    const userNumber = (msg.fromMe ? msg.to : msg.from)?.replace('@c.us', '');
+                    if (userNumber) contacts.add(userNumber);
                 });
-                $('#msgTable').DataTable({
-                    pageLength: 25,
-                    order: [[0, 'desc']] // Sort by timestamp descending
+
+                const contactSelector = document.getElementById('contactSelector');
+                contacts.forEach(contact => {
+                    const option = document.createElement('option');
+                    option.value = contact;
+                    option.textContent = contact;
+                    contactSelector.appendChild(option);
                 });
+
+                // Initially render an empty chat
+                renderChat([]); 
             })
             .catch(error => {
                 console.error('Error fetching messages:', error);
-                tbody.innerHTML = '<tr><td colspan="5">Error loading messages.</td></tr>';
+                chatContainer.innerHTML = '<p style="text-align:center;">Error loading messages.</p>';
             });
+        
+        document.getElementById('contactSelector').addEventListener('change', function() {
+            const selectedContact = this.value;
+            if (selectedContact) {
+                const filteredMessages = allMessages.filter(msg => {
+                    const from = msg.from ? msg.from.replace('@c.us', '') : '';
+                    const to = msg.to ? msg.to.replace('@c.us', '') : '';
+                    return from === selectedContact || to === selectedContact;
+                });
+                renderChat(filteredMessages);
+            } else {
+                renderChat([]); // Clear chat if no contact is selected
+            }
+        });
 
         function downloadRawMessagesExcel() {
-            fetch('/all-messages.json')
-                .then(response => response.json())
-                .then(data => {
-                    if (!Array.isArray(data) || data.length === 0) {
-                        alert('No messages to export.');
-                        return;
-                    }
-                    const excelData = data.map(msg => {
-                        const fromMe = msg.fromMe || (msg._data && msg._data.id && msg._data.id.fromMe);
-                        return {
-                            'Timestamp': msg.timestamp || 'N/A',
-                            'Chat Name': (msg._data && msg._data.chatName) || 'N/A',
-                            'Sender Name': (msg._data && msg._data.notifyName) || 'N/A',
-                            'Message Content': msg.body || '[Media/No Content]',
-                            'Sender Phone': msg.from ? msg.from.replace('@c.us', '') : 'N/A',
-                            'Receiver Phone': msg.to ? msg.to.replace('@c.us', '') : 'N/A',
-                            'Message ID': (msg.id && msg.id._serialized) || 'N/A',
-                            'Device Type': msg.deviceType || 'N/A',
-                            'From Me': fromMe ? 'Yes' : 'No',
-                            'Type': msg.type || 'N/A'
-                        };
-                    });
+            const selectedContact = document.getElementById('contactSelector').value;
+            if (!selectedContact) {
+                alert('Please select a contact to export the conversation.');
+                return;
+            }
+            
+            let dataToExport = allMessages.filter(msg => {
+                const from = msg.from ? msg.from.replace('@c.us', '') : '';
+                const to = msg.to ? msg.to.replace('@c.us', '') : '';
+                return from === selectedContact || to === selectedContact;
+            });
 
-                    const wb = XLSX.utils.book_new();
-                    const ws = XLSX.utils.json_to_sheet(excelData);
-                    ws['!cols'] = Object.keys(excelData[0]).map(h => ({ wch: Math.max(h.length + 2, 18) }));
-                    XLSX.utils.book_append_sheet(wb, ws, 'All Messages');
-                    const n = new Date();
-                    const fname = `All_WhatsApp_Messages_${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}.xlsx`;
-                    XLSX.writeFile(wb, fname);
-                })
-                .catch(error => {
-                    console.error('Error downloading messages:', error);
-                    alert('Error downloading messages. Please try again.');
-                });
+            if (!Array.isArray(dataToExport) || dataToExport.length === 0) {
+                alert('No messages to export for the selected contact.');
+                return;
+            }
+            
+            // Sort before exporting
+            dataToExport.sort((a, b) => {
+                const timeA = moment(a.timestamp, 'DD/MM/YYYY HH:mm').valueOf();
+                const timeB = moment(b.timestamp, 'DD/MM/YYYY HH:mm').valueOf();
+                return timeA - timeB;
+            });
+
+            const excelData = dataToExport.map(msg => {
+                const fromMe = msg.fromMe || (msg._data && msg._data.id && msg._data.id.fromMe);
+                return {
+                    'Timestamp': msg.timestamp || 'N/A',
+                    'Sender': fromMe ? 'WBOT' : (msg._data?.notifyName || selectedContact),
+                    'Message Content': msg.body || '[Media/No Content]',
+                    'From Me': fromMe ? 'Yes' : 'No'
+                };
+            });
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            ws['!cols'] = Object.keys(excelData[0]).map(h => ({ wch: Math.max(h.length + 2, 20) }));
+            XLSX.utils.book_append_sheet(wb, ws, `Chat with ${selectedContact}`);
+            const n = new Date();
+            const fname = `Conversation_${selectedContact}_${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}.xlsx`;
+            XLSX.writeFile(wb, fname);
         }
     </script>
 </body>
